@@ -1,7 +1,12 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY || "";
-const genAI = new GoogleGenAI({ apiKey });
+const getAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured. Please add it to your secrets.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const MODEL_NAME = "gemini-3-flash-preview";
 export const PRO_MODEL_NAME = "gemini-3.1-pro-preview";
@@ -16,6 +21,7 @@ export interface CandidateInfo {
 }
 
 export async function analyzeRoleFit(info: CandidateInfo) {
+  const ai = getAI();
   try {
     const prompt = `
       Analyze the following candidate information against the job description.
@@ -47,7 +53,7 @@ export async function analyzeRoleFit(info: CandidateInfo) {
       Predict 3-5 likely questions for each category.
     `;
 
-    const response = await genAI.models.generateContent({
+    const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: [{ parts: [{ text: prompt }] }],
       config: {
@@ -58,7 +64,10 @@ export async function analyzeRoleFit(info: CandidateInfo) {
     return JSON.parse(response.text || "{}");
   } catch (error) {
     console.error("Error in analyzeRoleFit:", error);
-    throw new Error("The analysis is taking longer than expected or failed. Please try with a shorter resume or job description.");
+    if (error instanceof Error && error.message.includes("API_KEY_INVALID")) {
+      throw new Error("Invalid API Key. Please check your GEMINI_API_KEY configuration.");
+    }
+    throw new Error("The analysis failed. This could be due to a very long resume or job description. Please try shortening them.");
   }
 }
 
@@ -66,6 +75,7 @@ export async function getNextInterviewQuestion(
   info: CandidateInfo,
   history: { role: string; content: string }[]
 ) {
+  const ai = getAI();
   try {
     const systemInstruction = `
       You are an Elite Interviewer with 10+ years of experience at top companies like ${info.companyName}. 
@@ -90,7 +100,7 @@ export async function getNextInterviewQuestion(
       If the candidate just answered: Acknowledge briefly (e.g., "Got it.", "Interesting.") and ask the next focused question or follow-up.
     `;
 
-    const response = await genAI.models.generateContent({
+    const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] })),
       config: {
@@ -101,7 +111,7 @@ export async function getNextInterviewQuestion(
     return response.text;
   } catch (error) {
     console.error("Error in getNextInterviewQuestion:", error);
-    return "I'm sorry, I'm having trouble connecting. Could you please repeat your last point or try again in a moment?";
+    return "I'm sorry, I'm having trouble connecting. Could you please check your internet connection or API key configuration?";
   }
 }
 
@@ -109,6 +119,7 @@ export async function generateFinalEvaluation(
   info: CandidateInfo,
   history: { role: string; content: string }[]
 ) {
+  const ai = getAI();
   try {
     const prompt = `
       Based on the following mock interview transcript, provide a comprehensive evaluation.
@@ -152,7 +163,7 @@ export async function generateFinalEvaluation(
       For learning resources, provide actual URLs to books, courses, or articles.
     `;
 
-    const response = await genAI.models.generateContent({
+    const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: [{ parts: [{ text: prompt }] }],
       config: {
@@ -163,13 +174,14 @@ export async function generateFinalEvaluation(
     return JSON.parse(response.text || "{}");
   } catch (error) {
     console.error("Error in generateFinalEvaluation:", error);
-    throw new Error("Evaluation failed. This can happen if the interview transcript is too long or complex. Please try a shorter session.");
+    throw new Error("Evaluation failed. This can happen if the interview transcript is too long. Please try a shorter session.");
   }
 }
 
 export async function transcribeAudio(base64Audio: string, mimeType: string) {
+  const ai = getAI();
   try {
-    const response = await genAI.models.generateContent({
+    const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: [
         {
@@ -191,6 +203,6 @@ export async function transcribeAudio(base64Audio: string, mimeType: string) {
     return response.text;
   } catch (error) {
     console.error("Error in transcribeAudio:", error);
-    throw new Error("Transcription failed.");
+    throw new Error("Transcription failed. Please check your microphone and try again.");
   }
 }

@@ -108,7 +108,8 @@ export default function App() {
       setStep('analysis');
     } catch (error) {
       console.error(error);
-      alert('Failed to analyze role fit. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to analyze role fit. Please try again.';
+      alert(message);
     } finally {
       setLoading(false);
     }
