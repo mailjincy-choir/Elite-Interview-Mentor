@@ -1,0 +1,5 @@
+{
+  "name": "Elite Interview Mentor AI",
+  "description": "A senior interview coach simulation that provides role fit analysis, mock interviews, and personalized improvement plans.",
+  "requestFramePermissions": ["microphone"]
+}
