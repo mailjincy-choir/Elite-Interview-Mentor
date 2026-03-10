@@ -119,8 +119,8 @@ export default function App() {
     setLoading(true);
     setStep('interview');
     try {
-      const firstQuestion = await getNextInterviewQuestion(info, []);
-      setInterviewHistory([{ role: 'model', content: firstQuestion || '' }]);
+      const firstQuestion = `Welcome! I'm your interviewer today. It's a pleasure to meet you. To get us started, could you please tell me a bit about yourself and share what motivated you to apply for the ${info.roleTitle} position at ${info.companyName}?`;
+      setInterviewHistory([{ role: 'model', content: firstQuestion }]);
     } catch (error) {
       console.error(error);
     } finally {
