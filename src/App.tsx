@@ -147,7 +147,17 @@ export default function App() {
         setStep('evaluation');
       } else {
         const nextQ = await getNextInterviewQuestion(info, newHistory);
-        setInterviewHistory([...newHistory, { role: 'model', content: nextQ || '' }]);
+        if (nextQ?.includes('[INTERVIEW_END]')) {
+          const cleanQ = nextQ.replace('[INTERVIEW_END]', '').trim();
+          const finalHistory: { role: 'user' | 'model'; content: string }[] = [...newHistory, { role: 'model', content: cleanQ }];
+          setInterviewHistory(finalHistory);
+          setLoadingMessage('Synthesizing final evaluation...');
+          const evalResult = await generateFinalEvaluation(info, finalHistory);
+          setEvaluation(evalResult);
+          setStep('evaluation');
+        } else {
+          setInterviewHistory([...newHistory, { role: 'model', content: nextQ || '' }]);
+        }
       }
     } catch (error) {
       console.error(error);
