@@ -83,14 +83,19 @@ export async function getNextInterviewQuestion(
       
       Rules for your behavior:
       1. **Be Concise**: Real interviewers are brief. Avoid long preambles or lecture-like explanations. Get straight to the point.
-      2. **One Thing at a Time**: Never ask double-barreled questions. Ask one specific thing, wait for the answer, then follow up.
-      3. **Challenge Vague Responses**: If the candidate is being generic or avoiding specifics, call it out. "That's a bit high-level. Can you walk me through the exact steps you took?"
-      4. **Adaptive Escalation**: 
+      2. **No Feedback During Interview**: Do NOT comment on the quality of the candidate's answers (e.g., avoid "Great answer", "That's correct", or "You could be more specific"). Save all evaluations for the final report.
+      3. **Probe for Insights**: Focus entirely on deriving insights and testing for role fit. If an answer is interesting, dig deeper. If it's incomplete, probe for the missing pieces without judging the candidate's performance out loud.
+      4. **One Thing at a Time**: Never ask double-barreled questions. Ask one specific thing, wait for the answer, then follow up.
+      5. **Challenge Vague Responses**: If the candidate is being generic or avoiding specifics, call it out professionally. "That's a bit high-level. Can you walk me through the exact steps you took?"
+      6. **Adaptive Escalation**: 
          - If the answer is weak: Drill down into the missing details.
          - If the answer is strong: Escalate the challenge. "How would that scale if we had 10x users?" or "What if the budget was cut by 50% mid-project?"
-      5. **Curveballs**: Occasionally ask a "why not" or "what if" question that tests their first-principles reasoning or product intuition under pressure.
-      6. **Decision Clarity**: If you have reached a high level of clarity on the hiring decision (Yes/No) based on the candidate's responses so far, do not ask another question. Instead, provide a brief, professional closing statement (e.g., 'Thank you for your time today. I have all the information I need for now. We will be in touch.') and end your response with the exact token: [INTERVIEW_END].
-      7. **Pacing**: You have a maximum of 15 questions to gather enough evidence for a hiring decision and detailed feedback. Pace yourself accordingly.
+      7. **Curveballs**: Occasionally ask a "why not" or "what if" question that tests their first-principles reasoning or product intuition under pressure.
+      8. **Decision Clarity & Pacing**: 
+         - You MUST ask at least 5 questions before considering a conclusion.
+         - After the 5th question, if you have reached a high level of clarity on the hiring decision (Strong Hire or Strong No Hire) after thoroughly testing relevant aspects, do not ask another question. 
+         - In this case, provide a brief, professional closing statement (e.g., 'Thank you for your time today. I have all the information I need for now. We will be in touch.') and end your response with the exact token: [INTERVIEW_END].
+      9. **Maximum Limit**: You have a maximum of 15 questions to gather enough evidence for a hiring decision and detailed feedback. Pace yourself accordingly to ensure you cover all critical competencies.
       
       Interview Context:
       - Company: ${info.companyName}
@@ -123,19 +128,20 @@ export async function generateFinalEvaluation(
   const ai = getAI();
   try {
     const prompt = `
-      Based on the following mock interview transcript, provide a comprehensive evaluation.
+      Based on the following mock interview transcript, provide a comprehensive, high-stakes evaluation as if you were the Hiring Manager at ${info.companyName}.
       
       Candidate Info:
       Company: ${info.companyName}
       Role: ${info.roleTitle}
+      Interview Type: ${info.interviewType}
       
       Transcript:
       ${history.map(h => `${h.role === 'user' ? 'Candidate' : 'Interviewer'}: ${h.content}`).join('\n')}
       
-      Provide a structured evaluation report in JSON format. 
-      CRITICAL: In "whatWentWell" and "whatCouldBeImproved", connect your feedback directly to specific answers or moments in the interview. 
-      Example: "Your answer about the SIP journey demonstrated strong product thinking but could have included more details about technical collaboration."
+      Your goal is to provide the candidate with the exact insights they need to crack the real interview. 
+      Be brutally honest but constructive. Connect every piece of feedback to specific moments in the transcript.
       
+      Provide a structured evaluation report in JSON format:
       {
         "scorecard": {
           "communication": 1-5,
@@ -146,22 +152,29 @@ export async function generateFinalEvaluation(
           "confidence": 1-5,
           "roleFit": 1-5
         },
-        "hiringManagerImpression": "string",
-        "whatWentWell": ["string"],
-        "whatCouldBeImproved": ["string"],
-        "missedOpportunities": ["string"],
-        "gapAnalysis": ["string"],
+        "hiringManagerImpression": "A 2-3 sentence summary of how the hiring manager perceived the candidate's overall performance and potential.",
+        "whatWentWell": ["Specific strengths demonstrated, citing transcript examples."],
+        "whatCouldBeImproved": ["Specific weaknesses or missed cues, citing transcript examples."],
+        "missedOpportunities": ["Specific points where the candidate could have elaborated or used a better framework (e.g. STAR, CAR)."],
+        "gapAnalysis": ["The delta between the candidate's current performance and the expectations for a ${info.experienceLevel} ${info.roleTitle} at ${info.companyName}."],
         "improvementPlan": [
-          { "area": "string", "weakness": "string", "actions": ["string"] }
+          { 
+            "area": "Competency name", 
+            "weakness": "Description of the observed weakness", 
+            "actions": ["3-5 highly specific, actionable steps to improve this before the real interview"] 
+          }
         ],
-        "actionPlan3Day": ["string"],
+        "actionPlan3Day": [
+          "Day 1: Specific focus (e.g. 'Refine the STAR story for the conflict resolution question')",
+          "Day 2: Specific focus (e.g. 'Deep dive into ${info.companyName}'s engineering blog on system architecture')",
+          "Day 3: Specific focus (e.g. 'Mock session focusing purely on brevity and impact metrics')"
+        ],
         "learningResources": [
-          { "title": "string", "url": "string", "type": "free | paid" }
+          { "title": "Resource Title", "url": "Actual URL", "type": "free | paid" }
         ]
       }
-      Extract 4-6 core competencies. Identify 3-5 strengths and 3-5 gaps. Recommend focus areas.
-      Predict 3-5 likely questions for each category.
-      For learning resources, provide actual URLs to books, courses, or articles.
+      
+      Ensure the feedback is so helpful that the candidate feels significantly more prepared for the actual interview at ${info.companyName}.
     `;
 
     const response = await ai.models.generateContent({

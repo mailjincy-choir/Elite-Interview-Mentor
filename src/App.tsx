@@ -488,13 +488,13 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          {interviewHistory.filter(h => h.role === 'user').length >= 6 && (
+          {interviewHistory.filter(h => h.role === 'user').length >= 5 && (
             <button
               onClick={handleEndInterviewEarly}
               disabled={loading}
               className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
             >
-              End Interview
+              End Session
             </button>
           )}
           <div className="text-sm font-medium text-zinc-500">
