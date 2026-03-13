@@ -11,7 +11,15 @@ export default defineConfig(({mode}) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     build: {
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'pdfjs': ['pdfjs-dist'],
+            'vendor': ['react', 'react-dom', 'lucide-react', 'motion'],
+          },
+        },
+      },
     },
     resolve: {
       alias: {
