@@ -18,18 +18,20 @@ export interface CandidateInfo {
   roleTitle: string;
   experienceLevel: string;
   interviewType: string;
+  persona?: string;
 }
 
 export async function analyzeRoleFit(info: CandidateInfo) {
   const ai = getAI();
   try {
     const prompt = `
-      Analyze the following candidate information against the job description.
+      Analyze the following candidate information against the job description from the perspective of a ${info.persona || 'Hiring Manager'}.
       
       Company: ${info.companyName}
       Role: ${info.roleTitle}
       Experience Level: ${info.experienceLevel}
       Interview Type: ${info.interviewType}
+      Interviewer Persona: ${info.persona || 'Hiring Manager'}
       
       Job Description:
       ${info.jobDescription}
@@ -50,7 +52,7 @@ export async function analyzeRoleFit(info: CandidateInfo) {
         }
       }
       Extract 4-6 core competencies. Identify 3-5 strengths and 3-5 gaps. Recommend focus areas.
-      Predict 3-5 likely questions for each category.
+      Predict 3-5 likely questions for each category that a ${info.persona || 'Hiring Manager'} would typically ask.
     `;
 
     const response = await ai.models.generateContent({
@@ -78,9 +80,16 @@ export async function getNextInterviewQuestion(
   const ai = getAI();
   try {
     const systemInstruction = `
-      You are an Elite Interviewer with 10+ years of experience at top companies like ${info.companyName}. 
-      Your goal is to determine if the candidate is a suitable fit for the role of ${info.roleTitle}.
+      You are an Elite Interviewer acting as a ${info.persona || 'Hiring Manager'} with 10+ years of experience at top companies like ${info.companyName}. 
+      Your goal is to determine if the candidate is a suitable fit for the role of ${info.roleTitle} from your specific perspective as a ${info.persona || 'Hiring Manager'}.
       
+      Persona Guidelines:
+      - **Hiring Manager**: Focus on overall team fit, long-term potential, ownership, and impact.
+      - **Technical Lead**: Deep dive into technical execution, architecture, code quality, and problem-solving.
+      - **Product Manager**: Focus on product intuition, user empathy, prioritization, and cross-functional collaboration.
+      - **Culture Fit Interviewer**: Focus on values alignment, soft skills, conflict resolution, and growth mindset.
+      - **HR Recruiter**: Focus on high-level experience, motivation, salary expectations (if applicable), and basic role alignment.
+
       Rules for your behavior:
       1. **Be Concise**: Real interviewers are brief. Avoid long preambles or lecture-like explanations. Get straight to the point.
       2. **No Feedback During Interview**: Do NOT comment on the quality of the candidate's answers (e.g., avoid "Great answer", "That's correct", or "You could be more specific"). Save all evaluations for the final report.
@@ -128,12 +137,13 @@ export async function generateFinalEvaluation(
   const ai = getAI();
   try {
     const prompt = `
-      Based on the following mock interview transcript, provide a comprehensive, high-stakes evaluation as if you were the Hiring Manager at ${info.companyName}.
+      Based on the following mock interview transcript, provide a comprehensive, high-stakes evaluation as if you were a ${info.persona || 'Hiring Manager'} at ${info.companyName}.
       
       Candidate Info:
       Company: ${info.companyName}
       Role: ${info.roleTitle}
       Interview Type: ${info.interviewType}
+      Interviewer Persona: ${info.persona || 'Hiring Manager'}
       
       Transcript:
       ${history.map(h => `${h.role === 'user' ? 'Candidate' : 'Interviewer'}: ${h.content}`).join('\n')}

@@ -22,8 +22,15 @@ import {
   ArrowRight,
   Mic,
   MicOff,
-  ExternalLink
+  ExternalLink,
+  Upload,
+  FileText,
+  X
 } from 'lucide-react';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
@@ -58,6 +65,8 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState('Mentor is thinking...');
   const [userInput, setUserInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [resumeFileName, setResumeFileName] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,10 +97,51 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [interviewHistory]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      setFormErrors({ ...formErrors, resume: 'Please upload a PDF file.' });
+      return;
+    }
+
+    setResumeFileName(file.name);
+    setIsExtracting(true);
+    setFormErrors({ ...formErrors, resume: '' });
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+
+      if (!fullText.trim()) {
+        throw new Error('No text could be extracted from this PDF. It might be an image-based PDF.');
+      }
+
+      setInfo({ ...info, resume: fullText });
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      setFormErrors({ ...formErrors, resume: 'Failed to extract text from PDF. Please try another file or copy-paste text.' });
+      setResumeFileName('');
+      setInfo({ ...info, resume: '' });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleStartAnalysis = async () => {
     const errors: Record<string, string> = {};
     if (!info.companyName) errors.companyName = 'Company Name is required';
-    if (!info.roleTitle) errors.roleTitle = 'Role Title is required';
+    if (!info.roleTitle) errors.roleTitle = 'Role for which you are applying is required';
     if (!info.experienceLevel) errors.experienceLevel = 'Experience Level is required';
     if (!info.resume) errors.resume = 'Resume is required';
     if (!info.jobDescription) errors.jobDescription = 'Job Description is required';
@@ -190,7 +240,7 @@ export default function App() {
           try {
             const transcription = await transcribeAudio(base64Audio, 'audio/webm');
             if (transcription) {
-              handleSendMessage(transcription);
+              setUserInput(transcription);
             }
           } catch (error) {
             console.error(error);
@@ -261,7 +311,7 @@ export default function App() {
         </div>
         <div className="space-y-4">
           <label className="block text-sm font-medium text-zinc-700 flex items-center gap-2">
-            <Briefcase className="w-4 h-4" /> Role Title <span className="text-red-500">*</span>
+            <Briefcase className="w-4 h-4" /> Role for which you are applying <span className="text-red-500">*</span>
           </label>
           <input 
             type="text" 
@@ -322,20 +372,54 @@ export default function App() {
 
       <div className="space-y-6">
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-zinc-700">Resume or Summary of Experience <span className="text-red-500">*</span></label>
-          <textarea 
-            rows={6}
-            placeholder="Paste your resume or a detailed summary of your career highlights..."
-            className={cn(
-              "w-full p-4 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none",
-              formErrors.resume ? "border-red-500 bg-red-50" : "border-zinc-200"
+          <label className="block text-sm font-medium text-zinc-700">Resume (PDF) <span className="text-red-500">*</span></label>
+          <div className={cn(
+            "relative group border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center gap-4",
+            formErrors.resume ? "border-red-300 bg-red-50" : "border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30",
+            info.resume && "border-emerald-200 bg-emerald-50/30"
+          )}>
+            {isExtracting ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                <p className="text-sm font-medium text-zinc-600">Scanning Resume...</p>
+              </div>
+            ) : info.resume ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-zinc-900">{resumeFileName}</p>
+                  <p className="text-xs text-emerald-600 font-medium">Text extracted successfully</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setInfo({ ...info, resume: '' });
+                    setResumeFileName('');
+                  }}
+                  className="text-xs text-zinc-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                >
+                  <X className="w-3 h-3" /> Remove and upload another
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-400 group-hover:text-indigo-500 group-hover:bg-indigo-100 transition-all">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-zinc-900">Click to upload or drag and drop</p>
+                  <p className="text-xs text-zinc-500">PDF files only</p>
+                </div>
+                <input 
+                  type="file" 
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+              </>
             )}
-            value={info.resume}
-            onChange={e => {
-              setInfo({...info, resume: e.target.value});
-              if (formErrors.resume) setFormErrors({...formErrors, resume: ''});
-            }}
-          />
+          </div>
           {formErrors.resume && <p className="text-xs text-red-500 mt-1">{formErrors.resume}</p>}
         </div>
         <div className="space-y-4">
