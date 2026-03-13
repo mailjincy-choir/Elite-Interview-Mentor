@@ -23,6 +23,15 @@ export interface CandidateInfo {
 export async function analyzeRoleFit(info: CandidateInfo) {
   const ai = getAI();
   try {
+    // Truncate inputs to prevent extreme length issues while keeping essential info
+    const maxChars = 15000;
+    const truncatedResume = info.resume.length > maxChars 
+      ? info.resume.substring(0, maxChars) + "... [truncated]" 
+      : info.resume;
+    const truncatedJD = info.jobDescription.length > maxChars 
+      ? info.jobDescription.substring(0, maxChars) + "... [truncated]" 
+      : info.jobDescription;
+
     const prompt = `
       Analyze the following candidate information against the job description.
       
@@ -32,10 +41,10 @@ export async function analyzeRoleFit(info: CandidateInfo) {
       Interview Type: ${info.interviewType}
       
       Job Description:
-      ${info.jobDescription}
+      ${truncatedJD}
       
       Candidate Resume/Experience:
-      ${info.resume}
+      ${truncatedResume}
       
       Provide a detailed "Role Fit Analysis Report" in JSON format with the following structure:
       {
@@ -61,13 +70,31 @@ export async function analyzeRoleFit(info: CandidateInfo) {
       },
     });
 
-    return JSON.parse(response.text || "{}");
-  } catch (error) {
+    const text = response.text;
+    if (!text) {
+      throw new Error("Empty response from AI model");
+    }
+
+    return JSON.parse(text);
+  } catch (error: any) {
     console.error("Error in analyzeRoleFit:", error);
-    if (error instanceof Error && error.message.includes("API_KEY_INVALID")) {
+    
+    // Handle specific API errors
+    const errorMessage = error?.message || "";
+    
+    if (errorMessage.includes("API_KEY_INVALID")) {
       throw new Error("Invalid API Key. Please check your GEMINI_API_KEY configuration.");
     }
-    throw new Error("The analysis failed. This could be due to a very long resume or job description. Please try shortening them.");
+    
+    if (errorMessage.includes("QUOTA_EXCEEDED") || errorMessage.includes("429")) {
+      throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    }
+
+    if (errorMessage.includes("SAFETY")) {
+      throw new Error("The content was flagged by safety filters. Please ensure your resume and job description contain professional content.");
+    }
+
+    throw new Error(`Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}. Please try with a slightly shorter resume or job description.`);
   }
 }
 
