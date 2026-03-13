@@ -171,14 +171,14 @@ export async function generateFinalEvaluation(
         ],
         "learningResources": [
           { 
-            "title": "Highly specific and reliable resource title (e.g. 'Mastering System Design at ${info.companyName}')", 
-            "url": "A real, verified, and high-quality URL (e.g. official documentation, top-tier engineering blogs, or reputable platforms like LeetCode, Exponent, or Interviewing.io)", 
+            "title": "Highly specific and reliable resource title (e.g. 'Mastering System Design at ${info.companyName}' or 'Product Strategy deep dive from Lenny's Podcast')", 
+            "url": "A real, verified, and high-quality URL (e.g. official documentation, top-tier engineering blogs, reputed YouTube channels like @LennysPodcast or @growproduct, or platforms like LeetCode)", 
             "type": "free | paid" 
           }
         ]
       }
       
-      CRITICAL: The "learningResources" MUST be highly relevant to the specific weaknesses identified in the "improvementPlan". Prioritize official company engineering blogs, high-quality technical documentation, and industry-standard interview prep platforms. Ensure all URLs are real and functional.
+      CRITICAL: The "learningResources" MUST be highly relevant to the specific weaknesses identified in the "improvementPlan". Prioritize official company engineering blogs, high-quality technical documentation, industry-standard interview prep platforms, and specific relevant videos from reputed YouTube channels (e.g. Lenny's Podcast, Grow Product). Ensure all URLs are real and functional.
       
       Ensure the feedback is so helpful that the candidate feels significantly more prepared for the actual interview at ${info.companyName}.
     `;
