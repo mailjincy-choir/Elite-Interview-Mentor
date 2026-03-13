@@ -65,6 +65,7 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState('Mentor is thinking...');
   const [userInput, setUserInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [resumeMethod, setResumeMethod] = useState<'upload' | 'text'>('upload');
   const [resumeFileName, setResumeFileName] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -112,7 +113,15 @@ export default function App() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      // Use a more robust worker URL or local worker if possible
+      // Using unpkg as an alternative to cdnjs
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      
+      const loadingTask = pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        useWorkerFetch: false,
+        isEvalSupported: false
+      });
       const pdf = await loadingTask.promise;
       
       let fullText = '';
@@ -372,54 +381,94 @@ export default function App() {
 
       <div className="space-y-6">
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-zinc-700">Resume (PDF) <span className="text-red-500">*</span></label>
-          <div className={cn(
-            "relative group border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center gap-4",
-            formErrors.resume ? "border-red-300 bg-red-50" : "border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30",
-            info.resume && "border-emerald-200 bg-emerald-50/30"
-          )}>
-            {isExtracting ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                <p className="text-sm font-medium text-zinc-600">Scanning Resume...</p>
-              </div>
-            ) : info.resume ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-zinc-900">{resumeFileName}</p>
-                  <p className="text-xs text-emerald-600 font-medium">Text extracted successfully</p>
-                </div>
-                <button 
-                  onClick={() => {
-                    setInfo({ ...info, resume: '' });
-                    setResumeFileName('');
-                  }}
-                  className="text-xs text-zinc-400 hover:text-red-500 flex items-center gap-1 transition-colors"
-                >
-                  <X className="w-3 h-3" /> Remove and upload another
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-400 group-hover:text-indigo-500 group-hover:bg-indigo-100 transition-all">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-zinc-900">Click to upload or drag and drop</p>
-                  <p className="text-xs text-zinc-500">PDF files only</p>
-                </div>
-                <input 
-                  type="file" 
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-              </>
-            )}
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-zinc-700">Resume <span className="text-red-500">*</span></label>
+            <div className="flex bg-zinc-100 p-1 rounded-lg">
+              <button 
+                onClick={() => setResumeMethod('upload')}
+                className={cn(
+                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                  resumeMethod === 'upload' ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                Upload PDF
+              </button>
+              <button 
+                onClick={() => setResumeMethod('text')}
+                className={cn(
+                  "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                  resumeMethod === 'text' ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                Paste Text
+              </button>
+            </div>
           </div>
+
+          {resumeMethod === 'upload' ? (
+            <div className={cn(
+              "relative group border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center gap-4",
+              formErrors.resume ? "border-red-300 bg-red-50" : "border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/30",
+              info.resume && resumeFileName && "border-emerald-200 bg-emerald-50/30"
+            )}>
+              {isExtracting ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  <p className="text-sm font-medium text-zinc-600">Scanning Resume...</p>
+                </div>
+              ) : info.resume && resumeFileName ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-zinc-900">{resumeFileName}</p>
+                    <p className="text-xs text-emerald-600 font-medium">Text extracted successfully</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setInfo({ ...info, resume: '' });
+                      setResumeFileName('');
+                    }}
+                    className="text-xs text-zinc-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Remove and upload another
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-400 group-hover:text-indigo-500 group-hover:bg-indigo-100 transition-all">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-zinc-900">Click to upload or drag and drop</p>
+                    <p className="text-xs text-zinc-500">PDF files only</p>
+                  </div>
+                  <input 
+                    type="file" 
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </>
+              )}
+            </div>
+          ) : (
+            <textarea 
+              rows={8}
+              placeholder="Paste your resume or a detailed summary of your career highlights here..."
+              className={cn(
+                "w-full p-4 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none",
+                formErrors.resume ? "border-red-500 bg-red-50" : "border-zinc-200"
+              )}
+              value={info.resume}
+              onChange={e => {
+                setInfo({...info, resume: e.target.value});
+                setResumeFileName(''); // Clear file name if they switch to text
+                if (formErrors.resume) setFormErrors({...formErrors, resume: ''});
+              }}
+            />
+          )}
           {formErrors.resume && <p className="text-xs text-red-500 mt-1">{formErrors.resume}</p>}
         </div>
         <div className="space-y-4">
